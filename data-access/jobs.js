@@ -19,6 +19,27 @@ async function insertNewJob(req, res) {
   }
 }
 
+async function getJobs (req, res) {
+  const { offset, limit } = req.query;
+  try {
+    let os = ''; let lmt = '';
+    const base = `SELECT * FROM jobs ORDER BY id`;
+    if(limit) lmt = `LIMIT = ${limit}`;
+    if(offset) os = `OFFSET = ${offset}`;
+
+    const query = `${base} ${lmt} ${os}`;
+    const { rows } = await db.query(query);
+
+    return res.status(200).json({
+      data: rows
+    })
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ msg: "Internal Error" });
+  }
+}
+
 //Get job by id
 async function getJobById(req, res) {
   try {
@@ -101,7 +122,8 @@ module.exports = {
   insertNewJob,
   getJobById,
   updateJob,
-  deleteJob
+  deleteJob,
+  getJobs
 }
 
 

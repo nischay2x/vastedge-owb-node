@@ -26,6 +26,9 @@ module.exports = {
       });
 
 
+    app.get('/jobs', passport.authenticate("jwt", { session: false }), async(req, res) => {
+      jobdata.getJobs(req, res);
+    })
 
 
     //get job
