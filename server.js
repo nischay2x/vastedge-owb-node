@@ -24,7 +24,7 @@ routeLogin.configure(app);
 routeUser.configure(app);
 routeJobs.configure(app);
 
-app.listen(6000, () => {
+app.listen(3001, () => {
     console.log('server started');
 });
 
