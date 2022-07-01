@@ -24,8 +24,8 @@ async function getJobs (req, res) {
   try {
     let os = ''; let lmt = '';
     const base = `SELECT * FROM jobs ORDER BY id`;
-    if(limit) lmt = `LIMIT = ${limit}`;
-    if(offset) os = `OFFSET = ${offset}`;
+    if(limit) lmt = `LIMIT ${limit}`;
+    if(offset) os = `OFFSET ${offset}`;
 
     const query = `${base} ${lmt} ${os}`;
     const { rows } = await db.query(query);
