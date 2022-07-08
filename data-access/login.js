@@ -1,7 +1,3 @@
-
-
-var crypto = require('crypto');
-var request = require('request');
 const { authenticator } = require('otplib');
 const QRCode = require('qrcode');
 const db = require("./index");
@@ -9,8 +5,8 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const keys = require("../config/keys");
+
 async function findUserById(id) {
-  console.log(id);
   try {
     let queryStr = "SELECT * FROM Users WHERE id = $1";
     let queryValues = [id];
@@ -28,61 +24,98 @@ async function findUserById(id) {
 
 async function findUserByEmail(email) {
   try {
-    console.log('jjjjjjjjj');
-    const { rows } = await db.query(
-      "SELECT * FROM Users WHERE LOWER(email) = LOWER($1)",
-      [email]
-    );
-    console.log('hey');
-    if (rows && rows.length == 1) {
-      return extractUserData(rows);
-    }
+    const { rows } = await db.query("SELECT * FROM Users WHERE email = $1", [email]);
+    if(rows.length) return rows[0];
+    return null;
   } catch (e) {
     console.log(e);
+    return null;
   }
-
-  return null;
 }
-
 
 async function insertNewUser(req, res) {
   try {
-    const user = await findUserByEmail(req.body.email);
-    console.log(user);
-    if (user) {
-      console.log(user.password);
-      return res
-        .json({ message: "User already exist" });
-    }
+    const body = req.body;
+    const user = await findUserByEmail(body.email);
+    if(user) return res.status(405).json({
+      type: "SQL Error",
+      error: "User already Exist"
+    });
 
-
-
-    bcrypt.genSalt(10, function (err, salt) {
+    bcrypt.genSalt(10, (err, salt) => {
       if (err) {
-
-        return res.status(400).json({ message: "Internal error" });
+        return res.status(500).json({
+          type: "Internal",   
+          error: err.message 
+        });
       }
 
-      bcrypt.hash(req.body.password, salt, function (err, hash) {
+      bcrypt.hash(body.password, salt, async (err, hash) => {
         if (err) {
-          return res.status(400).json({ message: "Internal error" });
+          return res.status(500).json({
+            type: "Internal",   
+            error: err.message 
+          });
         }
 
+        const query = `INSERT INTO users (email, password, firstname, lastname, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`;
+        const values = [
+          body.email, hash, body.firstname, 
+          body.lastname, body.phone, body.address
+        ];
 
-        db.query(
-          "INSERT INTO users(email, password, mfa) VALUES ($1,$2,false)", [req.body.email, hash]
-        );
-        return res
-          .json({ message: "User created successfully" });
+        const { rows } = await db.query(query, values);
+        return res.status(200).json({
+          status: true,
+          msg: "User Created. Please Login"
+        });
       })
     })
-  } catch (e) {
-    console.log(e);
-    return res.status(400).json({ message: "Internal error" });
+  } catch (err) {
+    console.log(err.message);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
+    });
   }
-
-  return null;
 }
+
+// async function insertNewUser(req, res) {
+//   try {
+//     const user = await findUserByEmail(req.body.email);
+//     console.log(user);
+//     if (user) {
+//       console.log(user.password);
+//       return res
+//         .json({ message: "User already exist" });
+//     }
+
+//     bcrypt.genSalt(10, function (err, salt) {
+//       if (err) {
+
+//         return res.status(400).json({ message: "Internal error" });
+//       }
+
+//       bcrypt.hash(req.body.password, salt, function (err, hash) {
+//         if (err) {
+//           return res.status(400).json({ message: "Internal error" });
+//         }
+
+
+//         db.query(
+//           "INSERT INTO users(email, password, mfa) VALUES ($1,$2,false)", [req.body.email, hash]
+//         );
+//         return res
+//           .json({ message: "User created successfully" });
+//       })
+//     })
+//   } catch (e) {
+//     console.log(e);
+//     return res.status(400).json({ message: "Internal error" });
+//   }
+
+//   return null;
+// }
 async function otp_verifybeforeMfa(req, res) {
   try {
 
@@ -209,68 +242,52 @@ async function signUp_mfa(req, res) {
 
 async function login(req, res) {
   try {
-    const user = await findUserByEmail(req.body.email);
-    console.log(user);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ message: "Incorrect username or password." });
-    }
+    const body = req.body;
 
-    bcrypt
-      .compare(req.body.password, user.password)
-      .then(isMatch => {
-        if (!isMatch) {
-          return res
-            .status(400)
-            .json({ message: "Incorrect username or password." });
-        }
-
-        if (user.mfa) {
-          return res
-            .status(200)
-            .json({
-              message: "Please Provide otp for login.",
-              "email": user.email,
-              status: true
-            });
-        }
-        else {
-
-          const payload = {
-            id: user.id,
-            email: user.email,
-
-          };
-
-          jwt.sign(
-            payload,
-            keys.SECRETORKEY,
-            req.body.email ? null : { expiresIn: 31536000 },
-            (err, token) => {
-              if (err) {
-                console.log(err);
-                throw error;
-              }
-              console.log(token);
-
-              return res
-                .json({ token: "Bearer " + token, status: false });
-            }
-          )
-        }
-      })
-      .catch(error => {
-        console.log(error);
-        res.status(400).json({ message: "Internal error" });
+    const user = await findUserByEmail(body.email);
+    if (!user) return res.status(404).json({
+      type: "SQL Error",
+      error: "Incorrect Username or Password." 
+    });
+    
+    bcrypt.compare(body.password, user.password, (err, isValid) => {
+      if(err) return res.status(500).json({
+        type: "Internal",
+        error: err.message
       });
+
+      if(!isValid) return res.status(200).json({
+        status: false,
+        msg: "Invalid Username or Password"
+      });
+
+      const jwtPayload = {
+        id: user.id, email: user.email, role: user.role
+      };
+
+      jwt.sign(jwtPayload, keys.SECRETORKEY, (err, token) => {
+        if(err) return res.status(500).json({
+          type: "Internal",
+          error: err.message
+        });
+
+        return res.status(200).json({
+          status: true,
+          data: {
+            token, role: user.role,
+            firstname: user.firstname,
+            lastname: user.lastname
+          }
+        })
+      })
+    });
   } catch (e) {
-    console.log(e);
-    res.status(400).json({ message: "Internal Error" });
+    console.log(err.message);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
+    });
   }
-
-
-
 }
 
 
@@ -284,6 +301,7 @@ extractUserData = rows => {
     mfa: rows[0].mfa
   });
 };
+
 module.exports = {
   findUserById,
   findUserByEmail,
@@ -292,8 +310,6 @@ module.exports = {
   signUp_mfa,
   otp_verifybeforeMfa,
   otp_verifyafterMfa
-
-
 }
 
 

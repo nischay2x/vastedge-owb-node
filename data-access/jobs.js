@@ -4,39 +4,72 @@ const User = require("../models/User");
 const Job = require("../models/Job");
 const keys = require("../config/keys");
 
+// async function test () {
+//   try {
+//     const res = await db.query("INSERT INTO jobs (job_site, start_date, end_date) VALUES($1, $2, $3) RETURNING id;", 
+//       ['4230 Palo Alto', '2022-03-21', '2022-12-12']
+//     );
+//     console.log(res);
+//   } catch (error) {
+//     console.log(error);
+//   }
+// }
+// test();
+
 //post
 async function insertNewJob(req, res) {
-  const { jobsite, jobdate, personid } = req.body;
+  const { jobSite, personJobs, startDate, endDate } = req.body;
   try {
-    await db.query("INSERT INTO jobs(jobsite, jobdate, personid) VALUES($1, $2, $3);", 
-      [jobsite, jobdate, personid]
+    const { rows } = await db.query("INSERT INTO jobs (job_site, start_date, end_date) VALUES($1, $2, $3) RETURNING id;", 
+      [jobSite, startDate, endDate]
     );
-    res.json({ message: "Data inserted successfully" });
+    
+    let insertValues = [];
+    personJobs.forEach((p) => {
+      insertValues.push(`('${p.startDate.toDateString()}', '${p.endDate.toDateString()}', ${rows[0].id}, ${p.id} )`)
+    });
+    const insertQueryValues = insertValues.join(', ');
+    console.log(insertQueryValues);
+
+    await db.query(`INSERT INTO user_job (start_date, end_date, job_id, user_id) VALUES ${insertQueryValues} ;`)
+    
+    res.status(200).json({
+      status: true,
+      data: {
+        job_site: jobSite,
+        start_date: startDate,
+        end_date: endDate,
+        id: rows[0].id,
+        persons: personJobs
+      }
+    })
   }
   catch (err) {
-    console.error(err.message);
-    res.json({ message: "internal error" });
+    console.log(err.message);
+    res.status(500).json({
+      type: "SQL Error",
+      error: err.message
+    });
   }
 }
 
 async function getJobs (req, res) {
-  const { offset, limit } = req.query;
+  const { offset = 0, limit = 20 } = req.query;
   try {
-    let os = ''; let lmt = '';
-    const base = `SELECT * FROM jobs ORDER BY id`;
-    if(limit) lmt = `LIMIT ${limit}`;
-    if(offset) os = `OFFSET ${offset}`;
-
-    const query = `${base} ${lmt} ${os}`;
+    const query = `SELECT * FROM jobs ORDER BY id LIMIT ${limit} OFFSET ${offset}`;
     const { rows } = await db.query(query);
 
     return res.status(200).json({
+      status: true,
       data: rows
     })
 
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Error" });
+    return res.status(500).json({ 
+      type: "SQL Error", 
+      error: error.message 
+    });
   }
 }
 
@@ -44,15 +77,33 @@ async function getJobs (req, res) {
 async function getJobById(req, res) {
   try {
     const { id } = req.params;
-    console.log(id);
-    const jobData = await db.query("Select * from jobs WHERE id = $1", [id]);
-    console.log(jobData);
-    res.json(jobData.rows[0]);
+    const jobRes = await db.query("Select * from jobs WHERE id = $1", [id]);
+    if(!jobRes.rows.length) return {
+      status: true,
+      msg: "No Job With such Id",
+      data : { job: {}, persons: [] }
+    }
+    const userRes = await db.query(
+      `SELECT u.id, u.status, u.lastname, u.firstname,
+      u.address, u.role, u.email, u.phone, uj.start_date AS user_start_date, uj.end_date AS user_end_date 
+      FROM users u, user_job uj 
+      WHERE uj.job_id = $1 AND u.id = uj.user_id;`, 
+      [id]
+    );
+    res.status(200).json({
+      status: true,
+      data: {
+        job: jobRes.rows[0],
+        persons: userRes.rows
+      }
+    });
   }
   catch (err) {
-    console.log(err);
-    // console.error(err.message);
-    res.json({ message: "internal error" });
+    console.log(error);
+    return res.status(500).json({ 
+      type: "SQL Error", 
+      error: "Internal Error" 
+    });
   }
 }
 
@@ -61,49 +112,73 @@ async function findJobById(id) {
     let queryStr = "SELECT * FROM jobs WHERE id = $1";
     let queryValues = [id];
     const { rows } = await db.query(queryStr, queryValues);
-    if (rows && rows.length == 1) {
-      return extractJobData(rows);
-    }
+    if(rows.length) return rows[0];
+    return null;
   } catch (e) {
     console.log(e);
+    return null;
   }
-  return null;
 }
 
 //Update Job
 async function updateJob(req, res) {
   try {
     const { id } = req.params;
-    console.log(id);
     let job = await findJobById(id);
     if (!job) {
-      return res.status(404).json({ message: "Not found" });
+      return res.status(404).json({
+        type: "SQL Error",
+        error: "No such Job Id" 
+      });
     }
-    if (req.body.jobsite) job.jobsite = req.body.jobsite;
-    if (req.body.jobdate) job.jobdate = req.body.jobdate;
-    if (req.body.jobdate) job.person_assigned = req.body.person_assigned;
-    await db.query("update jobs set jobsite = $2, jobdate = $3, personid = $4 where id = $1", [id, job.jobsite, job.jobdate, job.person_assigned]);
 
-    res.json({ message: "job updated successfully" });
+    const { jobSite, startDate, endDate } = req.body;
+    let updateJobQuery = `UPDATE jobs SET job_site = $1, start_date = $2, end_date = $3 WHERE id = $4`;
+    await db.query(updateJobQuery, [jobSite, startDate, endDate, id]);
+
+    // let insertValues = [];
+    // personIds.forEach((id) => {
+    //   insertValues.push(`('${startDate}', '${endDate}', ${rows[0].id}, ${id} )`);
+    // });
+    // const insertQueryValues = insertValues.join(', ');
+
+    // await db.query(`INSERT INTO user_job (start_date, end_date, job_id, user_id) VALUES ${insertQueryValues} ;`)
+
+    return res.status(200).json({
+      status: true,
+      msg: "Data Updated"
+    });
+
   } catch (err) {
-    console.error(err.message);
-    res.json({ message: "internal error" });
+    console.log(error);
+    return res.status(500).json({ 
+      type: "SQL Error", 
+      error: "Internal Error" 
+    });
   }
-
 }
+
+// to data-access/user_job.js
+
 
 
 //Delete job
 async function deleteJob(req, res) {
   try {
     const { id } = req.params;
-    const deleteTodo = await db.query("DELETE FROM jobs WHERE id = $1", [
-      id
-    ]);
-    res.json({ message: "job deleted successfully" });
+    await db.query("DELETE FROM jobs WHERE id = $1", [id]);
+    await db.query("DELETE FROM user_job WHERE job_id = $1", [id]);
+    
+    return res.status(200).json({
+      status: true,
+      msg: "Job Deleted"
+    });
   } catch (err) {
-    console.log(err.message);
-    res.json({ message: "internal error" });
+    console.log(error);
+    return res.status(500).json({ 
+      type: "SQL Error", 
+      error: "Internal Error" 
+    });
   }
 }
 

@@ -1,41 +1,43 @@
-var login = require('../data-access/login');
-const User = require("../models/User");
+var loginController = require('../data-access/login');
+
 const passport = require("passport");
-require('../config/passport')(passport)
+require('../config/passport')(passport);
+
+const common = require("../validators/common.js");
+const validation = require("../validators/login.js");
+
 module.exports = {
     configure: function (app) {
-        var o = {} // empty Object
-        var key = 'vehicle';
-        o[key] = [];
         app.use(function (req, res, next) {
             res.header("Access-Control-Allow-Origin", "*");
-            res.header("Access-Control-Allow-Headers", "Origin,     X-Requested-With, Content-Type, Accept");
+            res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
             next();
         });
-        app.route('/sign-up-mfa').post(
-            passport.authenticate("jwt", { session: false }),
+
+        app.route('/auth/sign-up-mfa').post(
+            // passport.authenticate("jwt", { session: false }),
+            common.validateJwt,
             (req, res) => {
-                login.signUp_mfa(req, res);
+                loginController.signUp_mfa(req, res);
             })
 
-        app.route('/sign-up').post((req, res) => {
+        app.route('/auth/sign-up').post(validation.verifyInsertUser, (req, res) => {
+            loginController.insertNewUser(req, res);
+        });
 
-            login.insertNewUser(req, res);
-
-
-
+        app.route('/auth/login').post(validation.verifyLoginData, (req, res) => {
+            loginController.login(req, res);
         })
 
-        app.route('/login').post((req, res) => {
-            login.login(req, res);
-        })
-        app.route('/otp-verify-beforeMfa').post(
-            passport.authenticate("jwt", { session: false }),
+        app.route('/auth/otp-verify-beforeMfa').post(
+            // passport.authenticate("jwt", { session: false }),
+            common.validateJwt,
             (req, res) => {
-                login.otp_verifybeforeMfa(req, res);
+                loginController.otp_verifybeforeMfa(req, res);
             })
-        app.route('/otp-verify-afterMfa').post((req, res) => {
-            login.otp_verifyafterMfa(req, res);
+
+        app.route('/auth/otp-verify-afterMfa').post((req, res) => {
+            loginController.otp_verifyafterMfa(req, res);
         })
     }
 }

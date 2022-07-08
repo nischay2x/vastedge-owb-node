@@ -1,106 +1,75 @@
-
 const db = require("./index");
 
 const Job = require("../models/Job");
 const User = require("../models/User");
 const keys = require("../config/keys");
+
 //post
 async function insertNewUser(req, res) {
-
   try {
+    const body = req.body;
 
-    const result = await db.query("INSERT INTO Users(email,password,mfa,firstname,lastname,role)VALUES($1,$2,$3,$4,$5,$6) RETURNING id", [req.body.email, req.body.password, false, req.body.firstname, req.body.lastname, req.body.role]);
+    const query = `INSERT INTO users (email, password, firstname, lastname, phone, address, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`;
+    const values = [
+      body.email, body.password, body.firstname, 
+      body.lastname, body.phone, body.address, body.role
+    ];
 
-    if (req.body.jobs) {
-      for (i = 0; i < req.body.jobs.length; i++) {
-        await db.query("INSERT INTO JOBS(jobsite,jobdate,personid) VALUES($1,$2,$3)", [req.body.jobs[i].jobsite, req.body.jobs[i].jobdate, result.rows[0].id]);
-      }
-    }
+    const { rows } = await db.query(query, values);
 
-    res.json({ message: "Data inserted successfully" });
-    // console.log(req.body);
-
-  }
-  catch (err) {
-    console.error(err.message);
-    res.json({ message: "internal error" });
+    return res.status(200).json({
+      status: true,
+      msg: "User Created",
+      newUserId: rows[0].id
+    });
+  } catch (err) {
+    console.log(err.message);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
+    });
   }
 }
 
 
-
 //get all users
 async function getUsers(req, res) {
-
-
   try {
-
-    let whereclause = "";
-    if (req.query.email) {
-
-      if (whereclause == "") {
-        whereclause = `where email LIKE '%%${req.query.email}%%'`
-      }
-      else {
-        whereclause = whereclause + ` AND email LIKE '%%${req.query.email}%%'`
-      }
+    const { email, firstname, limit, offset, sortBy } = req.query;
+    let where = "";
+    if(email) where = `WHERE email LIKE '%%${email}%%'`;
+    if(firstname) {
+      if(where) where = `${where} AND WHERE firstname LIKE '%%${firstname}%%'`;
+      else where = `WHERE firstname LIKE '%%${firstname}%%'`;
     }
 
-    if (req.query.firstname) {
+    let order = '';
+    if(sortBy) order = `ORDER BY ${sortBy}`;
 
-      if (whereclause == "") {
-        whereclause = `where firstname LIKE '%%${req.query.firstname}%%'`
+    let lmt = '';
+    if(limit) lmt = `LIMIT ${limit}`;
+
+    let os = '';
+    if(offset) os = `OFFSET ${offset}`;
+
+    let queryString = `SELECT id, firstname, lastname, address, email, phone, role 
+      FROM users ${where} ${order} ${lmt} ${os};`;
+
+    const { rows } = await db.query(queryString);
+    return res.status(200).json({
+      status: true,
+      data: {
+        limit, offset,
+        users: rows
       }
-      else {
-        whereclause = whereclause + ` AND firstname LIKE '%%${req.query.firstname}%%'`
-      }
-    }
-
-
-
-    if (req.query.creationDate_from && req.query.creationDate_to) {
-
-      if (whereclause == "") {
-        whereclause = `where creationDate > '%%${req.query.creationDate_from}%%' AND  creationDate<= '%%${req.query.creationDate_to}%%'`
-      }
-      else {
-        whereclause = whereclause + ` AND creationDate > '%%${req.query.creationDate_from}%%' AND  creationDate<= '%%${req.query.creationDate_to}%%'`
-      }
-    }
-
-
-
-
-    let orderbyclause = req.headers.sort != null ? ` ORDER BY ${req.headers.sort}` : "";
-
-    console.log(orderbyclause);
-
-    // let whereclause = where costcode LIKE '%%${keyword}%%' = req.params[value];
-    let limitclause = req.headers.limit != null ? `LIMIT ${req.headers.limit}` : "";
-    console.log('hey' + limitclause);
-    let offsetclause = req.headers.offset != null ? `OFFSET ${req.headers.offset}` : "";
-    console.log(whereclause);
-    let queryString = `
-         select * from users
-		 ${whereclause} 
-		 ${orderbyclause}
-          ${limitclause}
-          ${offsetclause}
-        `;
-
-    console.log(queryString);
-    const allusers = await db.query(queryString);
-    res.json({
-      users: allusers.rows,
-      limit: req.headers.limit,
-      offset: req.headers.offset
+    });
+  } catch (err) {
+    console.log(err.message);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
     });
   }
-  catch (err) {
-    console.error(err.message);
-    res.json({ message: "internal error" });
-  }
-
 }
 
 
@@ -108,45 +77,34 @@ async function getUsers(req, res) {
 
 //Get Inventory by id
 async function getUserById(req, res) {
-
   try {
     const { id } = req.params;
-    const userData = await db.query("Select * from users WHERE id = $1", [id]);
-    const { rows } = await db.query("Select * from jobs WHERE personid = $1", [id]);
-    if (rows && rows.length > 0) {
-      let jobs = extractJobs(rows).sort((a, b) => {
-        return a.jobdate < b.jobdate;
-      });
-
-      res.json({
-        "user": userData.rows[0],
-        "jobs": jobs
-      }
-      );
-
-    }
-    else {
-
-      res.json({
-        "user": userData.rows[0]
-
-      }
-      );
+    const userData = await db.query("SELECT id, firstname, lastname, address, email, phone, role, status FROM users WHERE id = $1", [id]);
+    if(!userData.rows.length) {
+      return res.status(200).json({
+        status: true,
+        user: {},
+        jobs: []
+      })
     }
 
-
-
+    const { rows } = await db.query("SELECT * FROM jobs j, user_job uj WHERE uj.user_id = $1 AND j.id = uj.job_id;", [id]);
+    return res.status(200).json({
+      status: true,
+      user: userData.rows[0],
+      jobs: rows
+    });
   }
   catch (err) {
-
-    console.log(err);
-    // console.error(err.message);
-    res.json({ message: "internal error" });
+    console.log(err.message);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
+    });
   }
 }
 
 async function findUserById(id) {
-
   try {
     let queryStr = "SELECT * FROM Users WHERE id = $1";
     let queryValues = [id];
@@ -158,37 +116,44 @@ async function findUserById(id) {
   } catch (e) {
     console.log(e);
   }
-
   return null;
-
 }
-//Update Inventory
-async function updateUser(req, res) {
 
+async function updateUser(req, res) {
   try {
     const { id } = req.params;
+    const body = req.body;
     let user = await findUserById(id);
     if (!user) {
-      return res.status(404).json({ message: "Not found" });
+      return res.status(404).json({ 
+        type: "SQL Error", 
+        error: "No Such User" 
+      });
     }
-    if (req.body.email) user.email = req.body.email;
-    if (req.body.password) user.email = req.body.password;
-    if (req.body.mfa) user.mfa = req.body.mfa;
-    if (req.body.firstname) user.firstname = req.body.firstname;
-    if (req.body.lastname) user.lastname = req.body.lastname;
-    if (req.body.address) user.address = req.body.address;
-    if (req.body.role) user.role = req.body.role;
 
-    await db.query("update users set email= $2, password = $3, mfa = $4, firstname = $5, lastname = $6,address = $7,role = $8 where id = $1", [req.params.id, user.email, user.password, user.mfa, user.firstname, user.lastname, user.address, user.role]
+    let query = `UPDATE users SET 
+      firstname = $1, lastname = $2,
+      address = $3, phone = $4, 
+      mfa = $5, role = $6 WHERE id = $7
+    `
+    let values = [
+      body.firstname, body.lastname, body.address, 
+      body.phone, body.mfa, body.role, id
+    ];
 
-    );
+    await db.query(query, values);
 
-    res.json({ message: "user updated successfully" });
+    return res.status(200).json({
+      status: true,
+      msg: "User Updated"
+    })
   } catch (err) {
-    console.error(err.message);
-    res.json({ message: "internal error" });
+    console.log(err.message);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
+    });
   }
-
 }
 
 
@@ -196,16 +161,43 @@ async function updateUser(req, res) {
 async function deleteUser(req, res) {
   try {
     const { id } = req.params;
-    const deleteInventoryDeatils = await db.query("DELETE FROM jobs WHERE personid = $1", [
-      id
-    ]);
-    const deleteInventory = await db.query("DELETE FROM users WHERE id = $1", [
-      id
-    ]);
-    res.json({ message: "user deleted successfully" });
+    await db.query("DELETE FROM user_job WHERE user_id = $1", [id]);
+    await db.query("DELETE FROM users WHERE id = $1", [id]);
+
+    return res.status(200).json({
+      status: true,
+      msg: "User Deleted"
+    })
   } catch (err) {
     console.log(err.message);
-    res.json({ message: "internal error" });
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
+    });
+  }
+}
+
+async function getUserJobs(req, res) {
+  try {
+    const { id } = req.params;
+    const jobsData = await db.query(
+      `SELECT j.id AS job_id, j.job_site, j.start_date, j.end_date,  
+      uj.start_date AS user_start_date,
+      uj.end_date AS user_end_date 
+      FROM jobs j, user_job uj WHERE uj.user_id = $1 AND j.id = uj.job_id;`,
+      [id]
+    );
+
+    return res.status(200).json({
+      status: true,
+      data: jobsData.rows
+    })
+  } catch (error) {
+    console.log(err.message);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: err.message
+    });
   }
 }
 
@@ -253,10 +245,8 @@ module.exports = {
   getUsers,
   getUserById,
   updateUser,
-  deleteUser
-
-
-
+  deleteUser,
+  getUserJobs
 }
 
 

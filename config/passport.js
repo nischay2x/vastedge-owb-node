@@ -20,7 +20,7 @@ module.exports = passport => {
   // });
 
    passport.use(
-    new JwtStrategy(opts, (req,jwt_payload, done) => {
+    new JwtStrategy(opts, (req, jwt_payload, done) => {
 		console.log(jwt_payload);
       query
         .findUserById(jwt_payload.id)
