@@ -46,8 +46,7 @@ module.exports = {
       });
 
     app.get("/user/:id/jobs", 
-      common.checkIdInParams,
-      common.verifyAuthority,
+      validation.verifyGetUserJob,
       userController.getUserJobs
     )
 

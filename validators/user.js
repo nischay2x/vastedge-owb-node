@@ -38,6 +38,22 @@ function veriftGetUsers (req, res, next) {
     next();
 }
 
+function verifyGetUserJob (req, res, next) {
+    let params = req.params;
+    let user = req.user;
+
+    if(params.id === 'me') {
+        req.params.id = user.id;
+        next();
+    } else {
+        if(user.role !== 'admin') return res.status(403).json({
+            type: 'Authority',
+            error: "Not an Admin"
+        });
+        next();
+    }
+}
+
 
 
 function verifyUpdateUser (req, res, next) {
@@ -59,4 +75,4 @@ function verifyUpdateUser (req, res, next) {
     next();``    
 }
 
-module.exports = { veriftGetUsers, verifyInsertUser, verifyUpdateUser }
+module.exports = { veriftGetUsers, verifyInsertUser, verifyUpdateUser, verifyGetUserJob }

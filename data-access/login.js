@@ -276,7 +276,10 @@ async function login(req, res) {
           data: {
             token, role: user.role,
             firstname: user.firstname,
-            lastname: user.lastname
+            lastname: user.lastname,
+            email: user.email,
+            address: user.address,
+            phone: user.phone
           }
         })
       })

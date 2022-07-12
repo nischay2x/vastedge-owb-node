@@ -38,7 +38,7 @@ function verifyAuthority (req, res, next) {
     const { role } = req.user;
     if(!role || role !== 'admin') return res.status(403).json({
         type: 'Authority',
-        error: "Not allowed to make changes"
+        error: "Not an Admin"
     });
 
     next();
