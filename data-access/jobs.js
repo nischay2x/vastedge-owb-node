@@ -57,7 +57,7 @@ async function getJobs (req, res) {
   const { offset = 0, limit = 20, sortBy = 'start_date' } = req.query;
   try {
     let query = '';
-    if (sortBy) query = `SELECT * FROM jobs ORDER BY id ORDER BY ${sortBy} LIMIT ${limit} OFFSET ${offset}`;
+    if (sortBy) query = `SELECT * FROM jobs ORDER BY ${sortBy} LIMIT ${limit} OFFSET ${offset}`;
     else query = `SELECT * FROM jobs ORDER BY id LIMIT ${limit} OFFSET ${offset}`;
     const { rows } = await db.query(query);
 
