@@ -19,25 +19,21 @@ module.exports = passport => {
   //   });
   // });
 
-   passport.use(
+  passport.use(
     new JwtStrategy(opts, (req, jwt_payload, done) => {
-		console.log(jwt_payload);
-      query
-        .findUserById(jwt_payload.id)
-       .then(user => {
-         if (!user) {
-           return done(null, false);
-          }
+      query.findUserById(jwt_payload.id).then(user => {
+        if (!user) {
+          return done(null, false);
+        }
 
-          console.log(user);
-         delete user.password;
-         return done(null, user);
-       })
+        delete user.password;
+        return done(null, user);
+      })
         .catch(error => {
           return done(null, false);
         });
-     })
-   );
+    })
+  );
 
 
 };

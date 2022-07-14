@@ -44,4 +44,25 @@ function verifyAuthority (req, res, next) {
     next();
 }
 
-module.exports = { checkIdInParams, verifyAuthority, validateJwt }
+function verifyAuthorityOnId (req, res, next) {
+    const { id } = req.params;
+    if(id === 'me') {
+        next();
+    } else {
+        const { role } = req.user;
+        if(role !== 'admin') return res.status(403).json({
+            type: 'Authority',
+            error: "Not an Admin"
+        }) 
+
+        next();
+    }
+}
+
+function putMeInParams (req, res, next) {
+    const { id } = req.user;
+    req.params = { id };
+    next();
+}
+
+module.exports = { checkIdInParams, verifyAuthority, validateJwt, putMeInParams, verifyAuthorityOnId }

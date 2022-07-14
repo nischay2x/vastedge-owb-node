@@ -8,36 +8,17 @@ const validation = require("../validators/login.js");
 
 module.exports = {
     configure: function (app) {
-        app.use(function (req, res, next) {
-            res.header("Access-Control-Allow-Origin", "*");
-            res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-            next();
-        });
+        app.route('/auth/sign-up-mfa').post(common.validateJwt, loginController.signUp_mfa)
 
-        app.route('/auth/sign-up-mfa').post(
-            // passport.authenticate("jwt", { session: false }),
-            common.validateJwt,
-            (req, res) => {
-                loginController.signUp_mfa(req, res);
-            })
+        app.route('/auth/sign-up').post(validation.verifyInsertUser, loginController.insertNewUser);
 
-        app.route('/auth/sign-up').post(validation.verifyInsertUser, (req, res) => {
-            loginController.insertNewUser(req, res);
-        });
+        app.route('/auth/login').post(validation.verifyLoginData, loginController.login);
 
-        app.route('/auth/login').post(validation.verifyLoginData, (req, res) => {
-            loginController.login(req, res);
-        })
+        app.route("/auth/forget-password").post(validation.verifyForgetPassword, loginController.sendResetPasswordOtp);
+        app.route("/auth/reset-password").post(validation.verifyResetPassword, loginController.verifyOtpAndResetPassword);
 
-        app.route('/auth/otp-verify-beforeMfa').post(
-            // passport.authenticate("jwt", { session: false }),
-            common.validateJwt,
-            (req, res) => {
-                loginController.otp_verifybeforeMfa(req, res);
-            })
+        app.route('/auth/otp-verify-beforeMfa').post(common.validateJwt, loginController.otp_verifybeforeMfa);
 
-        app.route('/auth/otp-verify-afterMfa').post((req, res) => {
-            loginController.otp_verifyafterMfa(req, res);
-        })
+        app.route('/auth/otp-verify-afterMfa').post(loginController.otp_verifyafterMfa);
     }
 }

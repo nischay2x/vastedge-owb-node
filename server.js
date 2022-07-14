@@ -2,13 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const fs = require('fs');
-const path = require('path');
-
 const app = express();
-
-
-
 const bodyparser = require ('body-parser');
 
 
@@ -20,6 +14,12 @@ const routeUserJobs = require("./route/userJob");
 app.use(bodyparser.urlencoded({ extended: true }));
 app.use(bodyparser.json());
 app.use(cors());
+
+app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
 
 routeLogin.configure(app);
 routeUser.configure(app);

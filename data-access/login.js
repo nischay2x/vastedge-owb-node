@@ -5,6 +5,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const keys = require("../config/keys");
+const mailService = require("../mail-service");
 
 async function findUserById(id) {
   try {
@@ -80,42 +81,6 @@ async function insertNewUser(req, res) {
   }
 }
 
-// async function insertNewUser(req, res) {
-//   try {
-//     const user = await findUserByEmail(req.body.email);
-//     console.log(user);
-//     if (user) {
-//       console.log(user.password);
-//       return res
-//         .json({ message: "User already exist" });
-//     }
-
-//     bcrypt.genSalt(10, function (err, salt) {
-//       if (err) {
-
-//         return res.status(400).json({ message: "Internal error" });
-//       }
-
-//       bcrypt.hash(req.body.password, salt, function (err, hash) {
-//         if (err) {
-//           return res.status(400).json({ message: "Internal error" });
-//         }
-
-
-//         db.query(
-//           "INSERT INTO users(email, password, mfa) VALUES ($1,$2,false)", [req.body.email, hash]
-//         );
-//         return res
-//           .json({ message: "User created successfully" });
-//       })
-//     })
-//   } catch (e) {
-//     console.log(e);
-//     return res.status(400).json({ message: "Internal error" });
-//   }
-
-//   return null;
-// }
 async function otp_verifybeforeMfa(req, res) {
   try {
 
@@ -293,6 +258,118 @@ async function login(req, res) {
   }
 }
 
+async function sendResetPasswordOtp (req, res) {
+  try {
+    const { email } = req.body;
+
+    const userData = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if(!userData.rows.length) return res.status(405).json({
+      type: "SQL Error",
+      error: "No such User"
+    })
+
+    const { rows } = await db.query(`SELECT * FROM otps WHERE email = $1`, [email]);
+    let otpToSend = null;
+
+    // already requested for otp
+    if(rows[0]?.otp && rows[0]?.email) {
+      otpToSend = rows[0].otp;
+    } 
+
+    // had previously changed password
+    else if (rows[0]?.email && !rows[0]?.otp) {
+      const otp = Math.floor(Math.random() * (999999 - 100000) + 100000);
+      await db.query(`UPDATE otps SET otp = $1 WHERE email = $2`, [otp, email])
+      otpToSend = otp;
+    } 
+
+    // has never requested for otp
+    else {
+      const otp = Math.floor(Math.random() * (999999 - 100000) + 100000);
+      await db.query(`INSERT INTO otps (email, otp, id) VALUES ($1, $2, $3)`, [email, otp, userData[0].id]);
+      otpToSend = otp;
+    }
+
+    mailService.sendPasswordResetEmail(email, otpToSend, (err, info) => {
+      if(err) return res.status(500).json({
+        type: "Mail Error",
+        error: err.message
+      })
+    });
+
+    return res.status(200).json({
+      status: true,
+      msg: `Password Reset OTP sent to ${email}`
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: error.message
+    });
+  }
+}
+
+async function verifyOtpAndResetPassword(req, res, next) {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const userData = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if(!userData.rows.length) return res.status(405).json({
+      type: "SQL Error",
+      error: "No such User"
+    })
+
+    const { rows } = await db.query("SELECT * FROM otps WHERE email = $1", [email]);
+
+    if (!rows.length || (rows[0]?.email && !rows[0]?.otp)) return res.status(405).json({
+      type: "SQL Error",
+      error: "Request for OTP first."
+    });
+
+    else if (rows[0]?.email && rows[0].otp !== otp) return res.status(405).json({
+      type: "Validation Error",
+      error: "Wrong OTP"
+    });
+
+    else {
+      bcrypt.genSalt(10, (err, salt) => {
+        if (err) {
+          return res.status(500).json({
+            type: "Internal",
+            error: err.message
+          });
+        }
+
+        bcrypt.hash(newPassword, salt, async (err, hash) => {
+          if (err) {
+            return res.status(500).json({
+              type: "Internal",
+              error: err.message
+            });
+          }
+
+          const query = `UPDATE users SET password = $1 WHERE id = $2;`;
+          const values = [hash, userData.rows[0].userid]
+
+          await db.query(query, values);
+          await db.query("UPDATE otps SET otp = $1 WHERE email = $2", [null, email]);
+          return res.status(200).json({
+            status: true,
+            msg: "Password Changed. Please Login"
+          });
+        })
+      })
+    }
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: error.message
+    });
+  }
+}
+
 
 extractUserData = rows => {
   return new User({
@@ -312,7 +389,9 @@ module.exports = {
   login,
   signUp_mfa,
   otp_verifybeforeMfa,
-  otp_verifyafterMfa
+  otp_verifyafterMfa,
+  sendResetPasswordOtp,
+  verifyOtpAndResetPassword
 }
 
 
