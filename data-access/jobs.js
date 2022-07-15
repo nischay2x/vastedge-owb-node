@@ -24,14 +24,15 @@ async function insertNewJob(req, res) {
       [jobSite, startDate, endDate]
     );
     
-    let insertValues = [];
-    personJobs.forEach((p) => {
-      insertValues.push(`('${p.startDate.toDateString()}', '${p.endDate.toDateString()}', ${rows[0].id}, ${p.id} )`)
-    });
-    const insertQueryValues = insertValues.join(', ');
-    console.log(insertQueryValues);
+    if (personJobs.length) {
+      let insertValues = [];
+      personJobs.forEach((p) => {
+        insertValues.push(`('${p.startDate.toDateString()}', '${p.endDate.toDateString()}', ${rows[0].id}, ${p.id} )`)
+      });
+      const insertQueryValues = insertValues.join(', ');
 
-    await db.query(`INSERT INTO user_job (start_date, end_date, job_id, user_id) VALUES ${insertQueryValues} ;`)
+      await db.query(`INSERT INTO user_job (start_date, end_date, job_id, user_id) VALUES ${insertQueryValues} ;`)
+    }
     
     res.status(200).json({
       status: true,

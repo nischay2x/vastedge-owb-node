@@ -21,7 +21,17 @@ function sendPasswordResetEmail (to, otp, callback) {
     return transporter.sendMail(mailOptions, callback);
 }
 
-module.exports = { sendPasswordResetEmail }
+function sendJobAssignmentMail (job, emailList, assigner, callback) {
+  const mailOptions = {
+    from: MAIL_USER,
+    to: emailList,
+    subject: "New Job Assigned",
+    text: `${assigner.name} (${assigner.email}) has assigned a new job at ${job.site} to you. See your dashboard for more information.`
+  }
+  return transporter.sendMail(mailOptions, callback)
+}
+
+module.exports = { sendPasswordResetEmail, sendJobAssignmentMail }
 
 // transporter.sendMail(mailOptions, function(error, info){
 //   if (error) {

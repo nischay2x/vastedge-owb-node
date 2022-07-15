@@ -5,7 +5,7 @@ function verifyInsertNewJob(req, res, next) {
         jobSite: Joi.string().required(),
         startDate: Joi.date().required(),
         endDate: Joi.date().required(),
-        personJobs: Joi.array().required().min(1).items(Joi.object().keys({
+        personJobs: Joi.array().required().items(Joi.object().keys({
             startDate: Joi.date().required(),
             endDate: Joi.date().required(),
             id: Joi.number().required().min(1)
