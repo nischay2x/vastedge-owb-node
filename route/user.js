@@ -35,7 +35,7 @@ module.exports = {
 
     app.get("/user/:id/jobs", 
       validation.verifyGetUserJob,
-      common.verifyAuthorityOnId,
+      // common.verifyAuthorityOnId,
       userController.getUserJobs
     )
 
