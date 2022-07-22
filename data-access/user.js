@@ -2,7 +2,29 @@ const db = require("./index");
 
 const Job = require("../models/Job");
 const User = require("../models/User");
-const keys = require("../config/keys");
+const dayjs = require("dayjs");
+
+
+async function getAdminHomeData (req, res) {
+  try {
+    let { from, to  } = req.query;
+    if(!to) to = new Date();
+    if(!from) from = dayjs(to).subtract(2, 'M').toJSON();
+
+    const response = await db.query('SELECT cast(owb_jobs_report($1, $2) AS json);', [from, to]);
+    const data = response.rows[0].owb_jobs_report.response_data;
+
+    return res.status(200).json({ status: true, from, to, data })
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      type: 'SQL Error',
+      error: error.message
+    });
+  }
+}
+
+
 
 //post
 async function insertNewUser(req, res) {
@@ -246,7 +268,8 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
-  getUserJobs
+  getUserJobs,
+  getAdminHomeData
 }
 
 

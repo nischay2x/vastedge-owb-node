@@ -10,6 +10,8 @@ module.exports = {
   configure: function (app) {
     app.use(common.validateJwt);
 
+    app.get("/home", common.verifyAuthority, userController.getAdminHomeData);
+
     //create a User
     app.post("/user",
       common.verifyAuthority,
