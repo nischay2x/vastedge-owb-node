@@ -210,9 +210,9 @@ async function login(req, res) {
     const body = req.body;
 
     const user = await findUserByEmail(body.email);
-    if (!user) return res.status(404).json({
-      type: "SQL Error",
-      error: "Incorrect Username or Password." 
+    if (!user) return res.status(200).json({
+      status: false,
+      msg: "Incorrect Username or Password." 
     });
     
     bcrypt.compare(body.password, user.password, (err, isValid) => {
