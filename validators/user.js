@@ -8,7 +8,7 @@ function verifyInsertUser (req, res, next) {
         lastname: Joi.string().default(""),
         phone: Joi.string().regex(/^\d+$/).min(10).max(14).required(),
         address: Joi.string().default("Not Provided"),
-        role: Joi.string().valid('user', 'admin').default('user')
+        role: Joi.string().valid('user', 'admin', 'worker').default('user')
     }).validate(req.body);
 
     if(error) return res.status(405).json({
@@ -63,7 +63,7 @@ function verifyUpdateUser (req, res, next) {
         address: Joi.string().required(),
         phone: Joi.string().regex(/^\d+$/).required().min(10).max(14),
         mfa: Joi.boolean().default(false),
-        role: Joi.string().valid('user', 'admin').required()
+        role: Joi.string().valid('user', 'admin', 'worker').required()
     }).validate(req.body);
 
     if(error) return res.status(405).json({

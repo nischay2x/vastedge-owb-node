@@ -12,7 +12,7 @@ async function insertUserJob(req, res) {
 
         return res.status(200).json({
             status: true,
-            msg: "Data Inserted"
+            msg: "Job Assigned Worker"
         })
     } catch (error) {
         console.log(error);
@@ -30,7 +30,7 @@ async function deleteUserJob(req, res) {
 
         return res.status(200).json({
             status: true,
-            msg: "Data Deleted Successfully"
+            msg: "User Job Deleted Successfully"
         });
     } catch (error) {
         console.log(error);
@@ -51,7 +51,7 @@ async function updateUserJobData ( req, res ) {
 
     return res.status(200).json({
       status: true,
-      msg: "Data Updated"
+      msg: "Job Data Updated"
     });
   } catch (error) {
     console.log(error);

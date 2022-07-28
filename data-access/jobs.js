@@ -151,7 +151,7 @@ async function updateJob(req, res) {
 
     return res.status(200).json({
       status: true,
-      msg: "Data Updated"
+      msg: "Job Updated"
     });
 
   } catch (err) {
