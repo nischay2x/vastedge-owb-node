@@ -32,10 +32,9 @@ async function insertNewUser(req, res) {
     const body = req.body;
 
     const check = await db.query("SELECT * FROM users WHERE email = $1", [body.email]);
-    if(check.rows.length) return res.status(405).json({
+    if(check.rows.length) return res.status(200).json({
       status: false,
-      type: "SQL Error",
-      error: "User already Exist"
+      msg: "User already Exist"
     })
 
     const query = `INSERT INTO users (email, password, firstname, lastname, phone, address, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`;

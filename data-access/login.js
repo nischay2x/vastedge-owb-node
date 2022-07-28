@@ -38,9 +38,9 @@ async function insertNewUser(req, res) {
   try {
     const body = req.body;
     const user = await findUserByEmail(body.email);
-    if(user) return res.status(405).json({
-      type: "SQL Error",
-      error: "User already Exist"
+    if(user) return res.status(200).json({
+      status: false,
+      msg: "User already Exist"
     });
 
     bcrypt.genSalt(10, (err, salt) => {
