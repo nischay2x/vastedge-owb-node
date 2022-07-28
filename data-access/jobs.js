@@ -35,6 +35,7 @@ async function insertNewJob(req, res) {
     }
     
     res.status(200).json({
+      msg: "Job Created",
       status: true,
       data: {
         job_site: jobSite,
