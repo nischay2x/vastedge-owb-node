@@ -349,7 +349,7 @@ async function verifyOtpAndResetPassword(req, res, next) {
           }
 
           const query = `UPDATE users SET password = $1 WHERE id = $2;`;
-          const values = [hash, userData.rows[0].userid]
+          const values = [hash, userData.rows[0].id];
 
           await db.query(query, values);
           await db.query("UPDATE otps SET otp = $1 WHERE email = $2", [null, email]);
