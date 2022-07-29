@@ -35,7 +35,7 @@ async function insertNewJob(req, res) {
     }
     
     res.status(200).json({
-      msg: "Job Created",
+      msg: "Job Created !",
       status: true,
       data: {
         job_site: jobSite,
@@ -151,7 +151,7 @@ async function updateJob(req, res) {
 
     return res.status(200).json({
       status: true,
-      msg: "Job Updated"
+      msg: "Job Updated !"
     });
 
   } catch (err) {
@@ -176,7 +176,7 @@ async function deleteJob(req, res) {
     
     return res.status(200).json({
       status: true,
-      msg: "Job Deleted"
+      msg: "Job Deleted !"
     });
   } catch (err) {
     console.log(error);

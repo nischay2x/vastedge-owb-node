@@ -47,7 +47,7 @@ async function insertNewUser(req, res) {
 
     return res.status(200).json({
       status: true,
-      msg: "User Created",
+      msg: "User Created !",
       newUserId: rows[0].id
     });
   } catch (err) {
@@ -173,7 +173,7 @@ async function updateUser(req, res) {
 
     return res.status(200).json({
       status: true,
-      msg: "User Updated"
+      msg: "User Updated !"
     })
   } catch (err) {
     console.log(err.message);
@@ -194,7 +194,7 @@ async function deleteUser(req, res) {
 
     return res.status(200).json({
       status: true,
-      msg: "User Deleted"
+      msg: "User Deleted !"
     })
   } catch (err) {
     console.log(err.message);
