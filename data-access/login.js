@@ -286,7 +286,7 @@ async function sendResetPasswordOtp (req, res) {
     // has never requested for otp
     else {
       const otp = Math.floor(Math.random() * (999999 - 100000) + 100000);
-      await db.query(`INSERT INTO otps (email, otp, id) VALUES ($1, $2, $3)`, [email, otp, userData[0].id]);
+      await db.query(`INSERT INTO otps (email, otp, userid) VALUES ($1, $2, $3)`, [email, otp, userData.rows[0].id]);
       otpToSend = otp;
     }
 
