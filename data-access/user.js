@@ -3,7 +3,7 @@ const db = require("./index");
 const Job = require("../models/Job");
 const User = require("../models/User");
 const dayjs = require("dayjs");
-
+const bcrypt = require('bcryptjs');
 
 async function getAdminHomeData (req, res) {
   try {
@@ -24,32 +24,45 @@ async function getAdminHomeData (req, res) {
   }
 }
 
-
-
-//post
 async function insertNewUser(req, res) {
   try {
     const body = req.body;
-
+    
     const check = await db.query("SELECT * FROM users WHERE email = $1", [body.email]);
     if(check.rows.length) return res.status(200).json({
       status: false,
       msg: "User already Exist"
     })
 
-    const query = `INSERT INTO users (email, password, firstname, lastname, phone, address, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`;
-    const values = [
-      body.email, body.password, body.firstname, 
-      body.lastname, body.phone, body.address, body.role
-    ];
+    bcrypt.genSalt(10, (err, salt) => {
+      if (err) {
+        return res.status(500).json({
+          type: "Internal",   
+          error: err.message 
+        });
+      }
 
-    const { rows } = await db.query(query, values);
+      bcrypt.hash(body.password, salt, async (err, hash) => {
+        if (err) {
+          return res.status(500).json({
+            type: "Internal",   
+            error: err.message 
+          });
+        }
 
-    return res.status(200).json({
-      status: true,
-      msg: "User Created !",
-      newUserId: rows[0].id
-    });
+        const query = `INSERT INTO users (email, password, firstname, lastname, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`;
+        const values = [
+          body.email, hash, body.firstname, 
+          body.lastname, body.phone, body.address
+        ];
+
+        await db.query(query, values);
+        return res.status(200).json({
+          status: true,
+          msg: "User Created !"
+        });
+      })
+    })
   } catch (err) {
     console.log(err.message);
     return res.status(500).json({
@@ -58,6 +71,39 @@ async function insertNewUser(req, res) {
     });
   }
 }
+
+//post
+// async function insertNewUser(req, res) {
+//   try {
+//     const body = req.body;
+
+//     const check = await db.query("SELECT * FROM users WHERE email = $1", [body.email]);
+//     if(check.rows.length) return res.status(200).json({
+//       status: false,
+//       msg: "User already Exist"
+//     })
+
+//     const query = `INSERT INTO users (email, password, firstname, lastname, phone, address, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`;
+//     const values = [
+//       body.email, body.password, body.firstname, 
+//       body.lastname, body.phone, body.address, body.role
+//     ];
+
+//     const { rows } = await db.query(query, values);
+
+//     return res.status(200).json({
+//       status: true,
+//       msg: "User Created !",
+//       newUserId: rows[0].id
+//     });
+//   } catch (err) {
+//     console.log(err.message);
+//     return res.status(500).json({
+//       type: 'SQL Error',
+//       error: err.message
+//     });
+//   }
+// }
 
 
 //get all users
