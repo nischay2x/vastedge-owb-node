@@ -90,7 +90,7 @@ async function getJobById(req, res) {
     }
     const userRes = await db.query(
       `SELECT u.id, u.status, u.lastname, u.firstname,
-      u.address, u.role, u.email, u.phone, uj.start_date AS user_start_date, uj.end_date AS user_end_date 
+      u.address, u.role, u.email, u.phone, uj.id AS user_job_id, uj.start_date AS user_start_date, uj.end_date AS user_end_date 
       FROM users u, user_job uj 
       WHERE uj.job_id = $1 AND u.id = uj.user_id;`, 
       [id]
