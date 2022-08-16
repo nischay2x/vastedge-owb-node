@@ -12,7 +12,7 @@ async function getAdminHomeData (req, res) {
     if(!from) from = dayjs(to).subtract(2, 'M').toJSON();
 
     const response = await db.query('SELECT cast(owb_jobs_report($1, $2) AS json);', [from, to]);
-    const data = response.rows[0].owb_jobs_report.response_data;
+    const data = JSON.parse(response.rows[0].owb_jobs_report.response_data);
 
     return res.status(200).json({ status: true, from, to, data })
   } catch (error) {
